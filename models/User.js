@@ -4,8 +4,22 @@ const userSchema = new mongoose.Schema({
     name: {type:String, required:true},
     email: {type:String, required:true, unique:true},
     password: {type:String, require:true},
-    role: {type:String, enum: ['employee', 'admin'], default:'employee'}
+    serviceNumber: {type: Number, required: true, unique: true},
+    phoneNumber: { type: String, required: false },
+    roleId: { type: mongoose.Schema.Types.ObjectId, ref: 'Role' },
+}, {timestamps:true}
+);
 
+// hashing password
+userSchema.pre("save", async function( next) {
+    if(!this.isModified("password"))
+        return next();
+    this.password = await bcrypt.hash(this.password, 10)
+    next();
 });
-
-mongoose.exports = mongoose.model('User', userSchema)
+ //compare password
+ userSchema.methods.matchPassword = function (enteredPassword){
+ return
+ bcrypt.compare(enteredPassword, this.password);
+ };
+ mongoose.exports = mongoose.model('User', userSchema);
