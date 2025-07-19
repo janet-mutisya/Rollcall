@@ -58,6 +58,11 @@ exports.getMyAttendance = async (req, res) => {
         count: attendance.length,
         data: attendance
       });
+
+      if (!req.user) {
+  console.log("req.user is undefined");
+  return res.status(401).json({ message: "Unauthorized. No user found." });
+}
     } catch (err) {
       console.error('Error fetching attendance:', err);
       res.status(500).json({

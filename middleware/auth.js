@@ -1,21 +1,20 @@
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const jwt = require("jsonwebtoken");
 
-const auth = async (req, res, next) => {
+const protect = (req, res, next) => {
+  const token = req.headers.authorization?.split(" ")[1]; 
+
+  if (!token) {
+    return res.status(401).json({ message: "Not authorized, no token" });
+  }
+
   try {
-    const token = req.header('Authorization').replace('Bearer ', '');
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id);
-
-    if (!user) {
-      return res.status(401).json({ message: 'Not authorized' });
-    }
-
-    req.user = user; // attach user to request
+    req.user = decoded; 
     next();
   } catch (err) {
-    res.status(401).json({ message: 'Please authenticate' });
+    console.error(err);
+    res.status(401).json({ message: "Not authorized, token failed" });
   }
 };
 
-module.exports = auth;
+module.exports = protect;
