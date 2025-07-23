@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const holidayAttendanceController = require('../controllers/holidayAttendanceController');
 const auth = require('../middleware/auth');
-const admin = require('../middleware/admin');
+const admin = require('../middleware/protect');
 
 // Record staff holiday attendance (admin)
 router.post('/holiday-attendance', auth, admin, holidayAttendanceController.markHolidayAttendance);

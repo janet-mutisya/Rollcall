@@ -6,3 +6,6 @@
 # End of https://www.toptal.com/developers/gitignore/api/uploads
 uploads/
 node_modules/
+.env
+coverage/
+node_modules/

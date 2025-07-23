@@ -1,20 +1,23 @@
-const jwt = require("jsonwebtoken");
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+const bcrypt = require('bcryptjs');
 
-const protect = (req, res, next) => {
-  const token = req.headers.authorization?.split(" ")[1]; 
-
-  if (!token) {
-    return res.status(401).json({ message: "Not authorized, no token" });
-  }
-
+const protect = async (req, res, next) => {
   try {
+    const token = req.header('Authorization').replace('Bearer ', '');
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded; 
+    const user = await User.findById(decoded.id);
+
+    if (!user) {
+      return res.status(401).json({ message: 'Not authorized' });
+    }
+
+    req.user = user; // attach user to request
     next();
   } catch (err) {
-    console.error(err);
-    res.status(401).json({ message: "Not authorized, token failed" });
+    res.status(401).json({ message: 'Please authenticate' });
   }
 };
 
+module.exports = protect;
 module.exports = protect;

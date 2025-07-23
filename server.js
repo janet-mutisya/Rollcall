@@ -1,10 +1,8 @@
 const express = require('express');
-const cors = require ('cors');
-require ('dotenv').config();
+const cors = require('cors');
+require('dotenv').config();
 const connectDB = require('./config/db');
 
-
-const PORT = process.env.PORT || 5000
 const app = express();
 connectDB();
 
@@ -12,14 +10,17 @@ app.use(cors({
   origin: 'http://localhost:5173',
   credentials: true
 }));
+
 app.use(express.json());
-//routes
+
+// Routes
 app.get('/', (req, res) => {
-    res.json('welcome to attendance system')
+  res.json('welcome to attendance system');
 });
 
+// Import routes
 const authRoutes = require('./routes/authRoutes');
-app.use('/api', authRoutes);
+app.use('/api/auth', authRoutes);
 
 const roleRoutes = require('./routes/roleRoutes');
 app.use('/api', roleRoutes);
@@ -28,6 +29,7 @@ const shiftRoutes = require('./routes/shiftRoutes');
 app.use('/api', shiftRoutes);
 
 const attendanceRoutes = require('./routes/attendanceRoutes');
+app.use('/api/attendance', attendanceRoutes);
 app.use('/api/attendance', attendanceRoutes);
 
 const offdayRoutes = require('./routes/offdayRoutes');
@@ -53,9 +55,12 @@ app.use('/api', emergencyRoutes);
 const holidayAttendanceRoutes = require('./routes/holidayAttendanceRoutes');
 app.use('/api', holidayAttendanceRoutes);
 
+// Middleware
 const errorHandler = require('./middleware/errorhandler');
 app.use(errorHandler);
 
-
-app.listen(PORT, () => console.log(`server is running at http://localhost:${PORT}`))
-
+// Start server
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Server running on port http://localhost:${PORT}`);
+});

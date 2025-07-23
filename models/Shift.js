@@ -6,26 +6,11 @@ const shiftSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
-  site: {
-    type: String,
-    required: true
-  },
-  shiftDate: {
-    type: Date,
-    required: true
-  },
-  shiftType: {
-    type: String,
-    enum: ['Day', 'Night'],
-    required: true
-  },
-  shiftTime: {
-    type: String
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  }
+  site: { type: String, required: true },
+  shiftDate: { type: Date, required: true },
+  shiftType: { type: String, enum: ['Day', 'Night'], required: true },
+  shiftTime: { type: String },
+  createdAt: { type: Date, default: Date.now }
 });
 
 // Auto-set shiftTime based on shiftType before saving
@@ -39,3 +24,4 @@ shiftSchema.pre('save', function (next) {
 });
 
 module.exports = mongoose.model('Shift', shiftSchema);
+

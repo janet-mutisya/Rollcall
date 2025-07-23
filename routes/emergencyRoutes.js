@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const emergencyController = require('../controllers/emergencyController');
 const auth = require('../middleware/auth');
-const admin = require('../middleware/admin');
+const admin = require('../middleware/protect');
 
 // Staff requests emergency absence
 router.post('/emergencies', auth, emergencyController.requestEmergency);

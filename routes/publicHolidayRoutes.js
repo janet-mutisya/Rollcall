@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const publicHolidayController = require('../controllers/publicHolidayController');
 const auth = require('../middleware/auth');
-const admin = require('../middleware/admin');
+const admin = require('../middleware/protect');
 
 // Admin creates public holiday
 router.post('/public-holidays', auth, admin, publicHolidayController.createPublicHoliday);

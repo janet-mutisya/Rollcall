@@ -63,3 +63,29 @@ exports.getMyProfile = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error fetching profile', error: err.message });
   }
 };
+
+   // admin assign role
+exports.assignMyRole = async (req, res) => {
+  try {
+    const { roleId } = req.body;
+
+    // Check if role exists
+    const role = await Role.findById(roleId);
+    if (!role) {
+      return res.status(404).json({ success: false, message: 'Role not found' });
+    }
+
+    // Update user's role
+    const user = await User.findByIdAndUpdate(req.user.id, { role: roleId }, { new: true }).populate('role');
+
+    res.status(200).json({
+      success: true,
+      message: 'Role assigned successfully',
+      data: user
+    });
+
+  } catch (err) {
+    console.error('Error assigning role:', err);
+    res.status(500).json({ success: false, message: 'Server error assigning role', error: err.message });
+  }
+};

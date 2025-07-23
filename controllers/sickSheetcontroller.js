@@ -1,17 +1,71 @@
 
 const SickSheet = require('../models/sickSheet');
-const upload = require('../middleware/upload')
+const User = require('../models/User');
 
-exports.uploadSickSheet = async (req, res) => {
+// Staff submits a sick sheet
+exports.submitSickSheet = async (req, res) => {
   try {
+    const { reason, attachmentUrl } = req.body;
+
     const sickSheet = await SickSheet.create({
       user: req.user.id,
-      date: req.body.date,
-      reason: req.body.reason,
-      document: req.body.document 
+      reason,
+      attachmentUrl
     });
-    res.status(201).json(sickSheet);
+
+    res.status(201).json({
+      success: true,
+      message: 'Sick sheet submitted successfully',
+      data: sickSheet
+    });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error('Error submitting sick sheet:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Server error submitting sick sheet',
+      error: err.message
+    });
+  }
+};
+
+// Admin views all sick sheets
+exports.getAllSickSheets = async (req, res) => {
+  try {
+    const sheets = await SickSheet.find()
+      .populate('user', 'name serviceNumber')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: sheets.length,
+      data: sheets
+    });
+  } catch (err) {
+    console.error('Error fetching sick sheets:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching sick sheets',
+      error: err.message
+    });
+  }
+};
+
+// Staff views their sick sheets
+exports.getMySickSheets = async (req, res) => {
+  try {
+    const sheets = await SickSheet.find({ user: req.user.id }).sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: sheets.length,
+      data: sheets
+    });
+  } catch (err) {
+    console.error('Error fetching my sick sheets:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching sick sheets',
+      error: err.message
+    });
   }
 };

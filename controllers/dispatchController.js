@@ -6,10 +6,20 @@ exports.createDispatch = async (req, res) => {
   try {
     const { serviceNumber, actionType, details } = req.body;
 
+    // Validate inputs
+    if (!serviceNumber || !actionType || !details) {
+      return res.status(400).json({ success: false, message: 'Service number, action type, and details are required' });
+    }
+
     // Find staff by service number
     const staff = await User.findOne({ serviceNumber });
     if (!staff) {
       return res.status(404).json({ success: false, message: 'Staff not found' });
+    }
+
+    // Ensure req.user exists
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ success: false, message: 'Unauthorized: Issuer info missing' });
     }
 
     const dispatch = await Dispatch.create({
@@ -52,6 +62,11 @@ exports.getAllDispatches = async (req, res) => {
 // Get my dispatch records (staff)
 exports.getMyDispatches = async (req, res) => {
   try {
+    // Ensure req.user exists
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ success: false, message: 'Unauthorized: User info missing' });
+    }
+
     const dispatches = await Dispatch.find({ staff: req.user.id })
       .sort({ createdAt: -1 });
 
