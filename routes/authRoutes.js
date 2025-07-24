@@ -10,7 +10,7 @@ router.post('/signup', authController.signup);
 router.post('/login', authController.login);
 
 // Get profile route
-router.get('/me', authController.getProfile);
+router.get('/me', protect, authController.getProfile);
 
 // update profile
 router.put('/me', authController.updateProfile);

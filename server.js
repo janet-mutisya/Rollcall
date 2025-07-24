@@ -30,7 +30,7 @@ app.use('/api', shiftRoutes);
 
 const attendanceRoutes = require('./routes/attendanceRoutes');
 app.use('/api/attendance', attendanceRoutes);
-app.use('/api/attendance', attendanceRoutes);
+//app.use('/api/attendance', attendanceRoutes);
 
 const offdayRoutes = require('./routes/offdayRoutes');
 app.use('/api', offdayRoutes);
