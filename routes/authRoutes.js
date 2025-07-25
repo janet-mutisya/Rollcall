@@ -13,6 +13,6 @@ router.post('/login', authController.login);
 router.get('/me', protect, authController.getProfile);
 
 // update profile
-router.put('/me', authController.updateProfile);
+router.put('/me', protect, authController.updateProfile);
 
 module.exports = router;
