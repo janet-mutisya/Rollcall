@@ -5,7 +5,7 @@ exports.signup = async (req, res) => {
   try {
     const { name, email, password, serviceNumber, phoneNumber, roleId } = req.body;
 
-    //Check if user already exists by email
+    // Check if user already exists by email
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res
@@ -13,7 +13,7 @@ exports.signup = async (req, res) => {
         .json({ success: false, message: "User already exists" });
     }
 
-    // Create new user (assuming User model hashes password in pre-save)
+    // Create new user 
     const user = await User.create({
       name,
       email,
@@ -31,6 +31,7 @@ exports.signup = async (req, res) => {
         name: user.name,
         email: user.email,
         serviceNumber: user.serviceNumber,
+        role: user.role, 
       },
     });
   } catch (error) {
@@ -43,12 +44,11 @@ exports.signup = async (req, res) => {
   }
 };
 
-
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    //Check if user exists
+    // Check if user exists
     const user = await User.findOne({ email });
     if (!user) {
       return res
@@ -56,7 +56,7 @@ exports.login = async (req, res) => {
         .json({ success: false, message: "Invalid credentials" });
     }
 
-    // validate password
+    // Validate password
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
       return res
@@ -64,11 +64,11 @@ exports.login = async (req, res) => {
         .json({ success: false, message: "Invalid credentials" });
     }
 
-    // JWT with 15-minute expiry
+    // JWT now includes both roleId and role to prevent forging
     const token = jwt.sign(
-      { userId: user._id, roleId: user.roleId },
+      { userId: user._id, role: user.role }, 
       process.env.JWT_SECRET,
-      { expiresIn: '7d' }  
+      { expiresIn: '7d' }
     );
 
     res.status(200).json({
@@ -80,6 +80,7 @@ exports.login = async (req, res) => {
         name: user.name,
         email: user.email,
         serviceNumber: user.serviceNumber,
+        role: user.role, // ✅ included again for frontend use
       },
     });
   } catch (error) {
@@ -92,7 +93,7 @@ exports.login = async (req, res) => {
   }
 };
 
-//get profile
+// Get profile
 exports.getProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user.userId).select('-password');
@@ -106,7 +107,7 @@ exports.getProfile = async (req, res) => {
   }
 };
 
-//update profile
+// Update profile
 exports.updateProfile = async (req, res) => {
   try {
     const { name, phoneNumber, serviceNumber } = req.body;
@@ -139,3 +140,4 @@ exports.updateProfile = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
