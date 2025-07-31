@@ -35,5 +35,5 @@ its yet to be deployed but soon im deploying it
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/your-username/attendance-system.git
+git clone https://github.com/janet-mutisya/attendance-system.git
 cd attendance-system
