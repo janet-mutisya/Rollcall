@@ -16,8 +16,14 @@ router.get('/my', protect, attendanceController.getMyAttendance);
 router.get('/all', protect, attendanceController.getAllAttendance);
 
 // Count attendance days
-// routes/attendanceRoutes.js
 router.get('/count', protect, attendanceController.countAttendanceDays);
 
+// check in
+router.post('/check-in', protect, attendanceController.markAttendance); 
+
+// check out
+router.post('/check-out', protect, attendanceController.markCheckout); 
+
+router.get('/my-shifts', protect, attendanceController.getMyShiftsWithAttendance);
 
 module.exports = router;

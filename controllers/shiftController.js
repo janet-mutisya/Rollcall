@@ -1,67 +1,131 @@
 const Shift = require('../models/Shift');
 const User = require('../models/User');
 
-// Create a new shift
+// Normalize date to YYYY-MM-DD
+const normalizeDate = (date) => {
+  return new Date(date).toISOString().split('T')[0];
+};
+
+// Create Shift
 exports.createShift = async (req, res) => {
   try {
-    const { ServiceNumber, site, shiftDate, shiftType } = req.body;
+    const { serviceNumber, site, shiftDate, shiftType } = req.body;
 
-    // Validate staff existence
-    const staff = await User.findOne({ serviceNumber: ServiceNumber });
-    if (!staff) {
-      return res.status(404).json({ success: false, message: 'Staff not found' });
+    if (!serviceNumber || !site || !shiftDate || !shiftType) {
+      return res.status(400).json({ message: 'All fields are required.' });
     }
 
-    // Create shift
-    const shift = await Shift.create({
-      staff: staff._id,
+    const shift = new Shift({
+      serviceNumber,
       site,
-      shiftDate,
-      shiftType
+      shiftDate: normalizeDate(shiftDate),
+      shiftType,
     });
 
-    res.status(201).json({
-      success: true,
-      message: 'Shift created successfully',
-      data: shift
-    });
-  } catch (err) {
-    console.error('Error creating shift:', err);
-    res.status(500).json({
-      success: false,
-      message: 'Server error creating shift',
-      error: err.message
-    });
+    await shift.save();
+    res.status(201).json(shift);
+  } catch (error) {
+    console.error("Create Shift Error:", error);
+    res.status(500).json({ message: 'Shift creation failed.', error });
   }
 };
 
-// Get all shifts
+// Get All Shifts
 exports.getAllShifts = async (req, res) => {
   try {
-    const shifts = await Shift.find()
-      .populate('staff', 'name serviceNumber')
-      .sort({ shiftDate: -1 });
+    const shifts = await Shift.find().sort({ shiftDate: -1 });
+
+    const shiftsWithNames = await Promise.all(
+      shifts.map(async (shift) => {
+        const user = await User.findOne({ serviceNumber: shift.serviceNumber });
+
+        return {
+          ...shift.toObject(),
+          staffName: user ? `${user.firstName} ${user.lastName}` : 'Unknown',
+        };
+      })
+    );
 
     res.status(200).json({
       success: true,
-      count: shifts.length,
-      data: shifts
+      count: shiftsWithNames.length,
+      data: shiftsWithNames,
     });
   } catch (err) {
     console.error('Error fetching shifts:', err);
     res.status(500).json({
       success: false,
       message: 'Server error fetching shifts',
-      error: err.message
+      error: err.message,
     });
   }
 };
 
-// Get a single shift by ID
+// Get Shift by ID
 exports.getShiftById = async (req, res) => {
   try {
-    const shift = await Shift.findById(req.params.id)
-      .populate('staff', 'name serviceNumber');
+    const shift = await Shift.findById(req.params.id);
+    if (!shift) {
+      return res.status(404).json({ success: false, message: 'Shift not found' });
+    }
+
+    const user = await User.findOne({ serviceNumber: shift.serviceNumber });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        ...shift.toObject(),
+        staffName: user ? `${user.firstName} ${user.lastName}` : 'Unknown',
+      },
+    });
+  } catch (err) {
+    console.error('Error fetching shift by ID:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching shift by ID',
+      error: err.message,
+    });
+  }
+};
+
+// Update Shift
+exports.updateShift = async (req, res) => {
+  try {
+    const { site, shiftDate, shiftType } = req.body;
+
+    const updatedShift = await Shift.findByIdAndUpdate(
+      req.params.id,
+      {
+        site,
+        shiftDate: shiftDate ? normalizeDate(shiftDate) : undefined,
+        shiftType,
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedShift) {
+      return res.status(404).json({ success: false, message: 'Shift not found' });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Shift updated successfully',
+      data: updatedShift,
+    });
+  } catch (err) {
+    console.error('Error updating shift:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Server error updating shift',
+      error: err.message,
+    });
+  }
+};
+
+// Delete Shift
+exports.deleteShift = async (req, res) => {
+  try {
+    const shift = await Shift.findByIdAndDelete(req.params.id);
 
     if (!shift) {
       return res.status(404).json({ success: false, message: 'Shift not found' });
@@ -69,14 +133,61 @@ exports.getShiftById = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: shift
+      message: 'Shift deleted successfully',
     });
   } catch (err) {
-    console.error('Error fetching shift by ID:', err);
+    console.error('Error deleting shift:', err);
     res.status(500).json({
       success: false,
-      message: 'Server error fetching shift by ID',
-      error: err.message
+      message: 'Server error deleting shift',
+      error: err.message,
+    });
+  }
+};
+
+// Filter Shifts by date, site, or serviceNumber
+exports.filterShifts = async (req, res) => {
+  try {
+    const { date, site, serviceNumber } = req.query;
+
+    const query = {};
+
+    if (date) {
+      const day = new Date(new Date(date).toDateString());
+      const nextDay = new Date(day);
+      nextDay.setDate(day.getDate() + 1);
+
+      query.shiftDate = { $gte: day.toISOString().split("T")[0], $lt: nextDay.toISOString().split("T")[0] };
+    }
+
+    if (site) query.site = site;
+
+    if (serviceNumber) query.serviceNumber = serviceNumber;
+
+    const shifts = await Shift.find(query);
+
+    const shiftsWithNames = await Promise.all(
+      shifts.map(async (shift) => {
+        const user = await User.findOne({ serviceNumber: shift.serviceNumber });
+
+        return {
+          ...shift.toObject(),
+          staffName: user ? `${user.firstName} ${user.lastName}` : 'Unknown',
+        };
+      })
+    );
+
+    res.status(200).json({
+      success: true,
+      count: shiftsWithNames.length,
+      data: shiftsWithNames,
+    });
+  } catch (err) {
+    console.error('Error filtering shifts:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Server error filtering shifts',
+      error: err.message,
     });
   }
 };

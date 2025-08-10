@@ -1,11 +1,7 @@
 const mongoose = require('mongoose');
 
 const shiftSchema = new mongoose.Schema({
-  staff: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
+  serviceNumber: {type: Number, required: true, trim: true},
   site: { type: String, required: true },
   shiftDate: { type: Date, required: true },
   shiftType: { type: String, enum: ['Day', 'Night'], required: true },
@@ -13,15 +9,12 @@ const shiftSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
-// Auto-set shiftTime based on shiftType before saving
+// Auto-set shiftTime based on shiftType
 shiftSchema.pre('save', function (next) {
-  if (this.shiftType === 'Day') {
-    this.shiftTime = '06:00-18:00';
-  } else if (this.shiftType === 'Night') {
-    this.shiftTime = '18:00-06:00';
-  }
+  this.shiftTime = this.shiftType === 'Day' ? '06:00-18:00' : '18:00-06:00';
   next();
 });
 
 module.exports = mongoose.model('Shift', shiftSchema);
+
 

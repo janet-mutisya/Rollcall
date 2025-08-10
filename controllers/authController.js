@@ -80,7 +80,7 @@ exports.login = async (req, res) => {
         name: user.name,
         email: user.email,
         serviceNumber: user.serviceNumber,
-        role: user.role, // ✅ included again for frontend use
+        role: user.role, 
       },
     });
   } catch (error) {

@@ -1,233 +1,205 @@
-const mongoose = require('mongoose');
 const Attendance = require('../models/attendance');
 const Shift = require('../models/Shift');
+const mongoose = require('mongoose');
 
-//Mark attendance for a shift
- 
+// Check-in (mark attendance)
 exports.markAttendance = async (req, res) => {
   try {
-    const { shiftId, checkInTime } = req.body;
-
-    // Validate shift exists
-    const shift = await Shift.findById(shiftId);
-    if (!shift) {
-      return res.status(404).json({ success: false, message: 'Shift not found' });
-    }
-
-    // Define today and tomorrow for uniqueness check
+    const userId = req.user.id;
+    const checkInTime = req.body.checkInTime ? new Date(req.body.checkInTime) : new Date();
+    
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(today.getDate() + 1);
 
-    // Check for existing attendance today
+    // Auto-detect today's shift
+    const shift = await Shift.findOne({
+    staff: userId,
+    $expr: {
+    $eq: [
+      { $dateToString: { format: "%Y-%m-%d", date: "$shiftDate" } },
+      new Date().toISOString().split('T')[0]
+       ]
+        }
+   });
+
+    if (!shift) {
+      return res.status(404).json({ success: false, message: 'No shift assigned for today' });
+    }
+
+    // Check if attendance already exists
     const existing = await Attendance.findOne({
-      staff: req.user.id,
-      shift: shiftId,
-      createdAt: { $gte: today, $lt: tomorrow }
+      staff: userId,
+      shift: shift._id,
+      date: { $gte: today, $lt: tomorrow }
     });
 
     if (existing) {
-      return res.status(400).json({
-        success: false,
-        message: 'Attendance already marked for this shift today'
-      });
+      return res.status(400).json({ success: false, message: 'Attendance already marked for this shift today' });
     }
 
     // Determine lateness
-    const shiftStartTime = shift.shiftTime.split('-')[0];
-    const shiftStart = new Date(`${shift.shiftDate}T${shiftStartTime}`);
-    const checkIn = new Date(checkInTime);
-    const isLate = checkIn > shiftStart;
+    const shiftStartTime = shift.shiftTime.split('-')[0]; // e.g. "06:00"
+    const shiftStart = new Date(`${shift.shiftDate.toISOString().split('T')[0]}T${shiftStartTime}`);
+    const isLate = checkInTime > shiftStart;
 
-    // Create attendance
     const attendance = await Attendance.create({
-      staff: req.user.id,
-      shift: shiftId,
+      staff: userId,
+      shift: shift._id,
       date: today,
-      checkInTime: checkIn,
+      checkInTime,
       status: isLate ? 'Late' : 'Present'
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: isLate ? 'Marked as Late' : 'Attendance marked successfully',
       data: attendance
     });
   } catch (err) {
     console.error('Error marking attendance:', err);
-    res.status(500).json({
-      success: false,
-      message: 'Server error marking attendance',
-      error: err.message
-    });
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
   }
 };
 
-// Mark checkout for a shift
+// Check-out
 exports.markCheckout = async (req, res) => {
   try {
-    const { shiftId } = req.body;
+    const userId = req.user.id;
+    const checkOutTime = req.body.checkOutTime ? new Date(req.body.checkOutTime) : new Date();
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(today.getDate() + 1);
+     
+    const shift = await Shift.findOne({
+     staff: userId,
+      $expr: {
+      $eq: [
+      { $dateToString: { format: "%Y-%m-%d", date: "$shiftDate" } },
+      new Date().toISOString().split('T')[0]
+    ]
+      }
+   });
+   if (!shift) {
+      return res.status(404).json({ success: false, message: 'No shift assigned for today' });
+    }
 
     const attendance = await Attendance.findOne({
-      staff: req.user.id,
-      shift: shiftId,
-      createdAt: { $gte: today, $lt: tomorrow }
+      staff: userId,
+      shift: shift._id,
+      date: { $gte: today, $lt: tomorrow }
     });
 
     if (!attendance) {
-      return res.status(404).json({
-        success: false,
-        message: 'Attendance not found for today'
-      });
+      return res.status(404).json({ success: false, message: 'No check-in record found to check out from' });
     }
 
-    attendance.checkOutTime = new Date();
+    attendance.checkOutTime = checkOutTime;
     await attendance.save();
 
-    res.status(200).json({
-      success: true,
-      message: 'Checked out successfully',
-      data: attendance
-    });
+    return res.status(200).json({ success: true, message: 'Checked out successfully', data: attendance });
   } catch (err) {
     console.error('Error marking checkout:', err);
-    res.status(500).json({
-      success: false,
-      message: 'Server error marking checkout',
-      error: err.message
-    });
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
   }
 };
 
-// Get logged-in user's attendance
+// Get my attendance
 exports.getMyAttendance = async (req, res) => {
   try {
-    const attendance = await Attendance.find({ staff: req.user.id })
-      .populate('shift', 'site shiftDate shiftTime shiftType')
-      .sort({ createdAt: -1 });
-
-    res.status(200).json({
-      success: true,
-      count: attendance.length,
-      data: attendance
-    });
+    const records = await Attendance.find({ staff: req.user.id }).populate('shift');
+    res.status(200).json({ success: true, data: records });
   } catch (err) {
-    console.error('Error fetching attendance:', err);
-    res.status(500).json({
-      success: false,
-      message: 'Server error fetching attendance',
-      error: err.message
-    });
+    console.error('Error getting my attendance:', err);
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
   }
 };
 
-
-//Get all attendance records (admin usage)
- 
+// Get all attendance (admin)
 exports.getAllAttendance = async (req, res) => {
   try {
-    const {
-      date,
-      from,
-      to,
-      staffId,
-      site,
-      page = 1,
-      limit = 10
-    } = req.query;
-
+    const { staff, date, status, site } = req.query;
     const filter = {};
+
+    if (staff) filter.staff = staff;
+    if (status) filter.status = status;
 
     if (date) {
       const d = new Date(date);
       d.setHours(0, 0, 0, 0);
       const next = new Date(d);
       next.setDate(d.getDate() + 1);
-      filter.createdAt = { $gte: d, $lt: next };
-    } else if (from && to) {
-      filter.createdAt = { $gte: new Date(from), $lte: new Date(to) };
+      filter.date = { $gte: d, $lt: next };
     }
 
-    if (staffId) {
-      filter.staff = staffId;
-    }
+    // Join shift to allow site filtering
+    const records = await Attendance.find(filter).populate({
+      path: 'shift',
+      match: site ? { site } : {},
+    }).populate('staff');
 
-    if (site) {
-      const shifts = await Shift.find({ site }).select('_id');
-      filter.shift = { $in: shifts.map(s => s._id) };
-    }
+    const filtered = site ? records.filter(r => r.shift) : records;
 
-    const skip = (page - 1) * limit;
-    const total = await Attendance.countDocuments(filter);
-
-    const attendance = await Attendance.find(filter)
-      .populate('staff', 'name serviceNumber')
-      .populate('shift', 'site shiftDate shiftTime shiftType')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
-
-    res.status(200).json({
-      success: true,
-      totalRecords: total,
-      count: attendance.length,
-      page: parseInt(page),
-      pages: Math.ceil(total / limit),
-      data: attendance
-    });
+    res.status(200).json({ success: true, data: filtered });
   } catch (err) {
-    console.error('Error fetching attendance:', err);
-    res.status(500).json({
-      success: false,
-      message: 'Server error fetching attendance records',
-      error: err.message
-    });
+    console.error('Error getting all attendance:', err);
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
   }
 };
 
-// Count unique attendance days for a staff member
- 
+// Count attendance days
 exports.countAttendanceDays = async (req, res) => {
   try {
-    const { staffId } = req.query;
+    const userId = req.user.id;
 
-    if (!staffId) {
-      return res.status(400).json({ success: false, message: 'staffId is required' });
-    }
-
-    const records = await Attendance.aggregate([
-      { $match: { staff: mongoose.Types.ObjectId(staffId) } },
-      {
-        $group: {
-          _id: {
-            year: { $year: "$date" },
-            month: { $month: "$date" },
-            day: { $dayOfMonth: "$date" }
-          }
-        }
-      },
-      { $count: "attendanceDays" }
-    ]);
-
-    const totalDays = records.length > 0 ? records[0].attendanceDays : 0;
-
+    const present = await Attendance.countDocuments({ staff: userId, status: 'Present' });
+    const late = await Attendance.countDocuments({ staff: userId, status: 'Late' });
+    const absent = await Attendance.countDocuments({staff: userId,status: 'absent'})
     res.status(200).json({
       success: true,
-      staffId,
-      totalDays
+      data: {
+        present,
+        late,
+        total: present + late,
+      }
     });
   } catch (err) {
-    console.error('Error counting attendance days:', err);
-    res.status(500).json({
-      success: false,
-      message: 'Server error counting attendance days',
-      error: err.message
-    });
+    console.error('Error counting attendance:', err);
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
+};
+
+// Get my shifts with check-in info
+exports.getMyShiftsWithAttendance = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const shifts = await Shift.find({ staff: userId })
+      .sort({ shiftDate: -1 });
+
+    const response = [];
+
+    for (const shift of shifts) {
+      const attendance = await Attendance.findOne({
+        staff: userId,
+        shift: shift._id
+      });
+
+      response.push({
+        shift,
+        attendance: attendance ? {
+          checkInTime: attendance.checkInTime,
+          status: attendance.status
+        } : null
+      });
+    }
+
+    res.status(200).json({ success: true, data: response });
+  } catch (err) {
+    console.error('Error getting my shifts with attendance:', err);
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
   }
 };
