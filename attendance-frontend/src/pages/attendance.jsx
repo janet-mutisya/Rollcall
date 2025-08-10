@@ -1,6 +1,5 @@
-// Attendance.jsx
 import React, { useEffect, useState } from 'react';
-import { getMyAttendance, checkIn, checkOut } from '../lib/api';
+import { getMyAttendance } from '../lib/api';
 
 export default function Attendance() {
   const [attendance, setAttendance] = useState([]);
@@ -29,26 +28,6 @@ export default function Attendance() {
     }
   };
 
-  const handleCheckIn = async () => {
-    try {
-      const res = await checkIn();
-      setCheckStatus('Checked in successfully!');
-      fetchAttendance();
-    } catch (err) {
-      setCheckStatus('Check-in failed. You may have already checked in.');
-    }
-  };
-
-  const handleCheckOut = async () => {
-    try {
-      const res = await checkOut();
-      setCheckStatus('Checked out successfully!');
-      fetchAttendance();
-    } catch (err) {
-      setCheckStatus('Check-out failed. You may not have checked in yet.');
-    }
-  };
-
   if (loading) {
     return <p className="text-center p-4">Loading attendance data...</p>;
   }
@@ -57,22 +36,6 @@ export default function Attendance() {
     <div className="min-h-screen bg-gray-100 p-4">
       <div className="max-w-4xl mx-auto bg-white rounded shadow p-6">
         <h1 className="text-2xl font-bold mb-4 text-center">My Attendance Records</h1>
-
-        {/* Buttons */}
-        <div className="flex justify-center gap-4 mb-6">
-          <button
-            onClick={handleCheckIn}
-            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
-          >
-            Check In
-          </button>
-          <button
-            onClick={handleCheckOut}
-            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
-          >
-            Check Out
-          </button>
-        </div>
 
         {checkStatus && (
           <p className="text-center text-blue-600 mb-4">{checkStatus}</p>

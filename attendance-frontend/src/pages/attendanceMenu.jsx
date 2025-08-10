@@ -10,7 +10,7 @@ import {
 
 export default function AttendanceMenu() {
   const navigate = useNavigate();
-  const [role, setRole] = useState("user"); // default to user
+  const [role, setRole] = useState("user");
 
   useEffect(() => {
     const storedRole = localStorage.getItem("role");

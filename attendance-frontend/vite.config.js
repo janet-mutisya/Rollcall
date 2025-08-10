@@ -3,7 +3,6 @@ import tailwindcss from "@tailwindcss/vite"
 import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
@@ -18,7 +17,11 @@ export default defineConfig({
     hmr: {
       protocol: "ws",
       host: "localhost",
-      port: 5173
+      port: 5173,
+    },
+    proxy: {
+      // This line tells Vite to forward `/api` requests to your backend
+      "/api": "http://localhost:5000",
     },
   },
 })
