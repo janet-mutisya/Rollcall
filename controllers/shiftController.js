@@ -191,3 +191,43 @@ exports.filterShifts = async (req, res) => {
     });
   }
 };
+
+// Bulk create shifts for multiple service numbers
+exports.bulkCreateShifts = async (req, res) => {
+  try {
+    const { serviceNumbers, site, shiftDate, shiftType } = req.body;
+
+    if (!serviceNumbers || !Array.isArray(serviceNumbers) || serviceNumbers.length === 0) {
+      return res.status(400).json({ message: 'serviceNumbers array is required' });
+    }
+    if (!site || !shiftDate || !shiftType) {
+      return res.status(400).json({ message: 'site, shiftDate, and shiftType are required' });
+    }
+
+    const normalizedDate = normalizeDate(shiftDate);
+
+    // Create shift objects for each serviceNumber
+    const shiftsToCreate = serviceNumbers.map(sn => ({
+      serviceNumber: sn,
+      site,
+      shiftDate: normalizedDate,
+      shiftType,
+    }));
+
+    // Insert many shifts at once
+    const createdShifts = await Shift.insertMany(shiftsToCreate);
+
+    res.status(201).json({
+      success: true,
+      count: createdShifts.length,
+      data: createdShifts,
+    });
+  } catch (error) {
+    console.error('Bulk create shifts error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Bulk shift creation failed',
+      error: error.message,
+    });
+  }
+};

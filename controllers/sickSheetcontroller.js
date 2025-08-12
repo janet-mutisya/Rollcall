@@ -1,4 +1,3 @@
-
 const SickSheet = require('../models/sickSheet');
 const User = require('../models/User');
 
@@ -53,7 +52,8 @@ exports.getAllSickSheets = async (req, res) => {
 // Staff views their sick sheets
 exports.getMySickSheets = async (req, res) => {
   try {
-    const sheets = await SickSheet.find({ user: req.user.id }).sort({ createdAt: -1 });
+    const sheets = await SickSheet.find({ user: req.user.id })
+      .sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
@@ -65,6 +65,34 @@ exports.getMySickSheets = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error fetching sick sheets',
+      error: err.message
+    });
+  }
+};
+
+// Admin deletes a sick sheet
+exports.deleteSickSheet = async (req, res) => {
+  try {
+    const sheet = await SickSheet.findById(req.params.id);
+
+    if (!sheet) {
+      return res.status(404).json({
+        success: false,
+        message: 'Sick sheet not found'
+      });
+    }
+
+    await sheet.deleteOne();
+
+    res.status(200).json({
+      success: true,
+      message: 'Sick sheet deleted successfully'
+    });
+  } catch (err) {
+    console.error('Error deleting sick sheet:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Server error deleting sick sheet',
       error: err.message
     });
   }

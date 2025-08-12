@@ -214,8 +214,9 @@ const EmployeeDashboard = () => {
   };
 
   const TabButton = ({ id, label, icon: Icon, isActive, onClick }) => (
-    <button
+    <Button
       onClick={() => onClick(id)}
+      variant="outline"
       className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
         isActive 
           ? 'bg-blue-600 text-white' 
@@ -224,7 +225,7 @@ const EmployeeDashboard = () => {
     >
       <Icon className="h-4 w-4" />
       <span>{label}</span>
-    </button>
+    </Button>
   );
 
   const renderDashboard = () => (
@@ -435,12 +436,12 @@ const EmployeeDashboard = () => {
       <div className="bg-white rounded-xl shadow-sm p-6 border">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900">Sick Sheet History</h3>
-          <button
+          <Button
             onClick={() => setShowSickSheetModal(true)}
             className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
           >
             New Sick Sheet
-          </button>
+          </Button>
         </div>
         
         <div className="space-y-3">
@@ -455,13 +456,13 @@ const EmployeeDashboard = () => {
               </div>
               <div className="flex items-center space-x-2">
                 {sheet.attachmentUrl && (
-                  <button className="text-blue-600 hover:text-blue-800">
+                  <Button className="text-blue-600 hover:text-blue-800">
                     <Eye className="h-4 w-4" />
-                  </button>
+                  </Button>
                 )}
-                <button className="text-gray-600 hover:text-gray-800">
+                <Button className="text-gray-600 hover:text-gray-800">
                   <Download className="h-4 w-4" />
-                </button>
+                </Button>
               </div>
             </div>
           ))}
@@ -567,21 +568,23 @@ const EmployeeDashboard = () => {
               </div>
 
               <div className="flex space-x-3 pt-4">
-                <button
+                <Button
                   type="button"
+                  variant="outline"
                   onClick={() => setShowSickSheetModal(false)}
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
+                  variant="outline"
                   disabled={!sickSheetForm.reason || fileUploading}
                   className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
                 >
                   <Send className="h-4 w-4" />
                   <span>Submit</span>
-                </button>
+                </Button>
               </div>
             </form>
           </div>

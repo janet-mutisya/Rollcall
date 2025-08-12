@@ -47,7 +47,7 @@ const dispatchRoutes = require('./routes/dispatchRoute');
 app.use('/api', dispatchRoutes);
 
 const sickSheetsRoutes = require('./routes/sickSheetRoutes');
-app.use('/api/sickSheets', sickSheetsRoutes);
+app.use('/api', sickSheetsRoutes);
 
 const publicHolidayRoutes = require('./routes/publicHolidayRoutes');
 app.use('/api', publicHolidayRoutes);

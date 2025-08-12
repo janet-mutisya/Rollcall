@@ -3,6 +3,7 @@ const router = express.Router();
 const shiftController = require('../controllers/shiftController');
 const auth = require('../middleware/auth'); 
 const admin = require('../middleware/protect'); 
+const protect = require("../middleware/protect");
 
 // Create a new shift (admin only)
 router.post('/shifts', admin, shiftController.createShift);
@@ -21,5 +22,8 @@ router.delete('/shifts/:id', admin, shiftController.deleteShift);
 
 // Filter shifts (admin only, or change to `auth` if needed)
 router.get('/shifts/filter', admin, shiftController.filterShifts);
+
+// bulk route
+router.post('/shifts/bulk', protect, shiftController.bulkCreateShifts);
 
 module.exports = router;

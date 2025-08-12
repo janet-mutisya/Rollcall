@@ -1,89 +1,80 @@
-
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Menu } from "lucide-react";
+import { toast } from "react-hot-toast";
+
 
 export default function Navbar() {
-  const [message, setMessage] = useState("");
+  const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const navigate = useNavigate(); // call as a function
 
   const handleLogout = () => {
     localStorage.removeItem("token");
-    setMessage("User logged out successfully");
-    setTimeout(() => {
-      navigate("/login");
-    }, 1000); 
+    toast.success("User logged out successfully");
+    setTimeout(() => navigate("/login"), 800);
   };
 
   return (
     <nav className="p-4 shadow-md bg-white flex items-center justify-between">
-      {/* Logo or Brand Name */}
-      <div className="text-xl font-bold text-blue-600">Attendance-System</div>
+      {/* Brand */}
+      <div
+        className="text-xl font-bold text-blue-600 cursor-pointer"
+        onClick={() => navigate("/")}
+      >
+        Attendance-System
+      </div>
 
       {/* Desktop Menu */}
-      <ul className="hidden md:flex gap-6 text-gray-700 font-medium">
-        <li className="hover:text-blue-600">
-          <Link to="/">Dashboard</Link>
-        </li>
-        <li className="hover:text-blue-600">
-          <Link to="/Shift">Shift</Link>
-        </li>
-        <li className="hover:text-blue-600">
-          <Link to="/reports">Reports</Link>
-        </li>
-      </ul>
-
-      {/* Hamburger Button for Mobile */}
-      <button
-        onClick={() => setIsMenuOpen(!isMenuOpen)}
-        className="md:hidden flex flex-col gap-1.5 focus:outline-none"
-        aria-label="Toggle menu"
-      >
-        <span
-          className={`block h-0.5 w-6 bg-gray-700 transition-transform duration-300 ${
-            isMenuOpen ? "rotate-45 translate-y-1.5" : ""
-          }`}
-        ></span>
-        <span
-          className={`block h-0.5 w-6 bg-gray-700 transition-opacity duration-300 ${
-            isMenuOpen ? "opacity-0" : "opacity-100"
-          }`}
-        ></span>
-        <span
-          className={`block h-0.5 w-6 bg-gray-700 transition-transform duration-300 ${
-            isMenuOpen ? "-rotate-45 -translate-y-1.5" : ""
-          }`}
-        ></span>
-      </button>
+      <div className="hidden md:flex items-center gap-4">
+        <Button variant="ghost" onClick={() => navigate("/")}>
+          Dashboard
+        </Button>
+        <Button variant="ghost" onClick={() => navigate("/shift")}>
+          Shift
+        </Button>
+        <Button variant="ghost" onClick={() => navigate("/reports")}>
+          Reports
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => navigate("/admin/sick-sheets")}
+        >
+          Sick Sheets
+        </Button>
+        <Button variant="destructive" onClick={handleLogout}>
+          Logout
+        </Button>
+      </div>
 
       {/* Mobile Menu */}
-      {isMenuOpen && (
-        <ul className="absolute top-full left-0 right-0 bg-white shadow-md flex flex-col gap-4 p-4 md:hidden text-gray-700 font-medium z-50">
-          <li className="hover:text-blue-600" onClick={() => setIsMenuOpen(false)}>
-            <Link to="/">Dashboard</Link>
-          </li>
-          <li className="hover:text-blue-600" onClick={() => setIsMenuOpen(false)}>
-            <Link to="/Shift">Shift</Link>
-          </li>
-          <li className="hover:text-blue-600" onClick={() => setIsMenuOpen(false)}>
-            <Link to="/reports">Reports</Link>
-          </li>
-          <li>
-            <button
-              className="text-red-500 hover:text-red-800 w-full text-left"
-              onClick={() => {
-                setIsMenuOpen(false);
-                handleLogout();
-              }}
-            >
+      <div className="md:hidden">
+        <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon">
+              <Menu className="h-5 w-5" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="right" className="flex flex-col gap-4 p-4">
+            <Button variant="ghost" onClick={() => {navigate("/"); setIsMenuOpen(false);}}>
+              Dashboard
+            </Button>
+            <Button variant="ghost" onClick={() => {navigate("/shift"); setIsMenuOpen(false);}}>
+              Shift
+            </Button>
+            <Button variant="ghost" onClick={() => {navigate("/reports"); setIsMenuOpen(false);}}>
+              Reports
+            </Button>
+            <Button variant="outline" onClick={() => {navigate("/admin/sick-sheets"); setIsMenuOpen(false);}}>
+              Sick Sheets
+            </Button>
+            <Button variant="destructive" onClick={() => {setIsMenuOpen(false); handleLogout();}}>
               Logout
-            </button>
-          </li>
-        </ul>
-      )}
+            </Button>
+          </SheetContent>
+        </Sheet>
+      </div>
     </nav>
   );
 }
-
-
