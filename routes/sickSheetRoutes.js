@@ -1,16 +1,21 @@
 const express = require('express');
 const router = express.Router();
-const auth = require('../middleware/auth');
-const admin = require('../middleware/protect');
 const sickSheetController = require('../controllers/sickSheetcontroller');
+const { protect, authorize } = require('../middleware/auth');
 
-// Staff submits sick sheet
-router.post('/sicksheets', auth, sickSheetController.submitSickSheet);
+// Staff routes
+router.post('/', 
+  protect, 
+  sickSheetController.uploadSickSheet, 
+  sickSheetController.submitSickSheet
+);
 
-// Admin views all sick sheets
-router.get('/sicksheets', auth, admin, sickSheetController.getAllSickSheets);
+router.get('/me', protect, sickSheetController.getMySickSheets);
 
-// Staff views own sick sheets
-router.get('/sicksheets/mine', auth, sickSheetController.getMySickSheets);
+// Admin routes
+router.get('/', protect, authorize('admin'), sickSheetController.getAllSickSheets);
+router.delete('/:id', protect, authorize('admin'), sickSheetController.deleteSickSheet);
+router.put('/:id', protect, authorize('admin'), sickSheetController.updateSickSheetStatus);
+router.get('/stats', protect, authorize('admin'), sickSheetController.getSickSheetStats);
 
 module.exports = router;
