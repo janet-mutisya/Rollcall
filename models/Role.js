@@ -4,10 +4,10 @@ const roleSchema = new mongoose.Schema({
     name: {
         type: String,
         required: [true, 'Role name is required'],
-        unique: true,
+        unique: true,  // keep unique inline
         lowercase: true,
         trim: true,
-        enum: ['user',  'manager', 'admin']
+        enum: ['user', 'manager', 'admin']
     },
     displayName: {
         type: String,
@@ -40,8 +40,7 @@ const roleSchema = new mongoose.Schema({
     timestamps: true
 });
 
-// Index for performance
-roleSchema.index({ name: 1 });
+// Keep other indexes only if needed (level for performance)
 roleSchema.index({ level: 1 });
 
 // Static method to check if a role can assign another role

@@ -70,7 +70,7 @@ const signup = async (req, res) => {
     try {
         const { name, email, password, serviceNumber, phoneNumber } = req.body;
 
-        // Input validation - Remove roleId from allowed fields
+        // Input validation
         const validationErrors = validateInput(req.body, ['name', 'email', 'password', 'serviceNumber']);
         if (validationErrors.length > 0) {
             return res.status(400).json({
@@ -409,7 +409,7 @@ const getAssignableRoles = async (req, res) => {
     }
 };
 
-// Login
+// FIXED LOGIN function with proper error handling
 const login = async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -425,7 +425,7 @@ const login = async (req, res) => {
         const user = await User.findOne({ 
             email: email.toLowerCase().trim(),
             isActive: true,
-            approvalStatus: 'approved' // Only approved users can login
+            approvalStatus: 'approved' 
         }).populate('roleId');
 
         const invalidCredentialsMsg = "Invalid email or password";
@@ -437,7 +437,9 @@ const login = async (req, res) => {
             });
         }
 
-        if (user.isLocked) {
+        // Check if account is locked - handle both lockUntil field and isLocked method
+        const isLocked = user.lockUntil && user.lockUntil > Date.now();
+        if (isLocked || (user.isLocked && typeof user.isLocked === 'function' && user.isLocked())) {
             return res.status(423).json({
                 success: false,
                 message: "Account is temporarily locked due to too many failed login attempts. Please try again later."
@@ -447,21 +449,45 @@ const login = async (req, res) => {
         const isMatch = await user.matchPassword(password);
         
         if (!isMatch) {
-            await user.incLoginAttempts();
+            // Handle failed login attempts - check if method exists
+            if (typeof user.incLoginAttempts === 'function') {
+                await user.incLoginAttempts();
+            } else {
+                // Manual increment if method doesn't exist
+                user.loginAttempts = (user.loginAttempts || 0) + 1;
+                
+                // Lock account after 5 failed attempts for 2 hours
+                if (user.loginAttempts >= 5) {
+                    user.lockUntil = Date.now() + 2 * 60 * 60 * 1000; // 2 hours
+                }
+                
+                await user.save();
+            }
+            
             return res.status(401).json({
                 success: false,
                 message: invalidCredentialsMsg
             });
         }
 
-        await user.resetLoginAttempts();
+        // Reset login attempts on successful login
+        if (typeof user.resetLoginAttempts === 'function') {
+            await user.resetLoginAttempts();
+        } else {
+            // Manual reset if method doesn't exist
+            user.loginAttempts = 0;
+            user.lockUntil = undefined;
+            user.lastLogin = new Date();
+            await user.save();
+        }
+
         const token = generateToken(user._id, user.roleId);
 
         res.cookie('token', token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'strict',
-            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+            maxAge: 7 * 24 * 60 * 60 * 1000
         });
 
         res.status(200).json({
@@ -474,10 +500,11 @@ const login = async (req, res) => {
                 email: user.email,
                 serviceNumber: user.serviceNumber,
                 phoneNumber: user.phoneNumber,
-                role: user.roleId.displayName,
+                role: user.roleId.name.toLowerCase(),
                 roleLevel: user.roleId.level,
                 permissions: user.roleId.permissions,
-                lastLogin: user.lastLogin
+                lastLogin: user.lastLogin,
+                approvalStatus: user.approvalStatus
             }
         });
 
@@ -486,6 +513,169 @@ const login = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Internal server error"
+        });
+    }
+};
+
+// Get all pending users (admin only)
+const getPendingUsers = async (req, res) => {
+    try {
+        // Check if user is admin
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied. Admin role required.'
+            });
+        }
+
+        const pendingUsers = await User.find({ 
+            approvalStatus: 'pending',
+            isActive: true 
+        })
+        .populate('roleId')
+        .select('-password -loginAttempts -lockUntil')
+        .sort({ createdAt: -1 });
+
+        const formattedUsers = pendingUsers.map(user => ({
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            serviceNumber: user.serviceNumber,
+            phoneNumber: user.phoneNumber,
+            role: user.roleId?.displayName || 'User',
+            createdAt: user.createdAt,
+            updatedAt: user.updatedAt
+        }));
+
+        res.json({
+            success: true,
+            users: formattedUsers,
+            count: formattedUsers.length
+        });
+
+    } catch (error) {
+        console.error('Error fetching pending users:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error'
+        });
+    }
+};
+
+// Approve or reject user (admin only)
+const approveUser = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { approved } = req.body;
+
+        // Check if user is admin
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied. Admin role required.'
+            });
+        }
+
+        const user = await User.findById(userId).populate('roleId');
+        
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        if (user.approvalStatus !== 'pending') {
+            return res.status(400).json({
+                success: false,
+                message: 'User has already been processed'
+            });
+        }
+
+        if (approved) {
+            // Approve the user
+            user.approvalStatus = 'approved';
+            user.approvedBy = req.user.userId;
+            user.approvedAt = new Date();
+            
+            await user.save();
+            
+            res.json({
+                success: true,
+                message: 'User approved successfully',
+                user: {
+                    id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    role: user.roleId.displayName,
+                    approvedAt: user.approvedAt
+                }
+            });
+        } else {
+            // Reject the user
+            user.approvalStatus = 'rejected';
+            user.rejectedBy = req.user.userId;
+            user.rejectedAt = new Date();
+            user.isActive = false;
+            
+            await user.save();
+            
+            res.json({
+                success: true,
+                message: 'User rejected successfully'
+            });
+        }
+
+    } catch (error) {
+        console.error('Error processing user approval:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error'
+        });
+    }
+};
+
+// Get user approval statistics (admin dashboard)
+const getApprovalStats = async (req, res) => {
+    try {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied. Admin role required.'
+            });
+        }
+
+        const stats = await User.aggregate([
+            {
+                $group: {
+                    _id: '$approvalStatus',
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
+
+        const formattedStats = {
+            pending: 0,
+            approved: 0,
+            rejected: 0,
+            total: 0
+        };
+
+        stats.forEach(stat => {
+            formattedStats[stat._id] = stat.count;
+            formattedStats.total += stat.count;
+        });
+
+        res.json({
+            success: true,
+            stats: formattedStats
+        });
+
+    } catch (error) {
+        console.error('Error fetching approval stats:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error'
         });
     }
 };
@@ -539,7 +729,7 @@ const getProfile = async (req, res) => {
 // Update user profile
 const updateProfile = async (req, res) => {
     try {
-        const userId = req.user.userId; // Fixed: should be userId, not id
+        const userId = req.user.userId;
 
         let user = await User.findById(userId);
         if (!user) {
@@ -550,7 +740,7 @@ const updateProfile = async (req, res) => {
         }
 
         // Update only the fields provided
-        const { name, email, phoneNumber } = req.body; // Fixed: use phoneNumber consistently
+        const { name, email, phoneNumber } = req.body;
         if (name) user.name = name.trim();
         if (email) user.email = email.toLowerCase().trim();
         if (phoneNumber) user.phoneNumber = phoneNumber.trim();
@@ -668,6 +858,9 @@ module.exports = {
     approveRoleChange,
     getAssignableRoles,
     login,
+    getPendingUsers,
+    approveUser,
+    getApprovalStats,
     getProfile,
     updateProfile,
     changePassword,

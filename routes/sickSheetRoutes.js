@@ -1,21 +1,31 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const sickSheetController = require('../controllers/sickSheetcontroller');
-const { protect, authorize } = require('../middleware/auth');
+const sickSheetController = require("../controllers/sickSheetcontroller");
+const protect = require("../middleware/protect");
+const requireRole = require("../middleware/requireRole");
 
-// Staff routes
-router.post('/', 
-  protect, 
-  sickSheetController.uploadSickSheet, 
-  sickSheetController.submitSickSheet
-);
+// Staff submits a sick sheet
+router.post("/submit", protect, sickSheetController.submitSickSheet);
 
-router.get('/me', protect, sickSheetController.getMySickSheets);
+// Staff views their own sick sheets
+router.get("/my-sick-sheets", protect, sickSheetController.getMySickSheets);
 
-// Admin routes
-router.get('/', protect, authorize('admin'), sickSheetController.getAllSickSheets);
-router.delete('/:id', protect, authorize('admin'), sickSheetController.deleteSickSheet);
-router.put('/:id', protect, authorize('admin'), sickSheetController.updateSickSheetStatus);
-router.get('/stats', protect, authorize('admin'), sickSheetController.getSickSheetStats);
+// Staff checks their remaining limits
+router.get("/limits", protect, sickSheetController.getUserLimits);
+
+// Staff views a signed URL to their own attachment
+router.get("/:id/signed-url", protect, sickSheetController.getSignedUrl);
+
+// Admin gets all sick sheets (with filters, pagination)
+router.get("/", protect, requireRole("admin"), sickSheetController.getAllSickSheets);
+
+// Admin updates status (approve/reject)
+router.put("/:id/status", protect, requireRole("admin"), sickSheetController.updateSickSheetStatus);
+
+// Admin deletes a sick sheet
+router.delete("/:id", protect, requireRole("admin"), sickSheetController.deleteSickSheet);
+
+// Admin stats (for dashboard)
+router.get("/stats/overview", protect, requireRole("admin"), sickSheetController.getSickSheetStats);
 
 module.exports = router;

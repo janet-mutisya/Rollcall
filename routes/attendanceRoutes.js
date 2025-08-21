@@ -1,29 +1,70 @@
-const express = require('express');
+// routes/attendanceRoutes.js
+const express = require("express");
 const router = express.Router();
-const attendanceController = require('../controllers/attendanceController');
-const protect = require('../middleware/protect');
+const attendanceController = require("../controllers/attendanceController");
+const protect = require("../middleware/protect");
+const requireRole = require("../middleware/requireRole"); // ✅ we use this instead of authorize
 
-// Mark attendance
-router.post('/mark', protect, attendanceController.markAttendance);
+// ================= STAFF ROUTES =================
 
-// Mark checkout
-router.post('/checkout', protect, attendanceController.markCheckout);
+// Staff: check in (3 times a day with geolocation validation)
+router.post("/checkin", protect, attendanceController.checkIn);
 
-// Fetch my attendance records
-router.get('/my', protect, attendanceController.getMyAttendance);
+// Staff: check out (end of day)
+router.post("/checkout", protect, attendanceController.checkOut);
 
-// Get all attendance records
-router.get('/all', protect, attendanceController.getAllAttendance);
+// Staff: view own attendance records (with filters)
+router.get("/my", protect, attendanceController.getMyAttendances);
 
-// Count attendance days
-router.get('/count', protect, attendanceController.countAttendanceDays);
+// Staff: view attendance stats (monthly summary, etc.)
+router.get("/my/stats", protect, attendanceController.getMyAttendanceStats);
 
-// check in
-router.post('/check-in', protect, attendanceController.markAttendance); 
+// ================= ADMIN ROUTES =================
 
-// check out
-router.post('/check-out', protect, attendanceController.markCheckout); 
+// Admin: get all attendances (with enriched status: holiday work, sick leave, offdays, proof, etc.)
+router.get(
+  "/",
+  protect,
+  requireRole("admin"), 
+  attendanceController.getAllAttendances
+);
 
-router.get('/my-shifts', protect, attendanceController.getMyShiftsWithAttendance);
+// Admin: view attendance stats for dashboard
+router.get(
+  "/stats",
+  protect,
+  requireRole("admin"),
+  attendanceController.getAttendanceStats
+);
+
+// Admin: export attendance data (CSV/Excel)
+router.get(
+  "/export/csv",
+  protect,
+  requireRole("admin"), 
+  attendanceController.exportAttendanceCSV
+);
+
+router.get(
+  "/export/excel",
+  protect,
+  requireRole("admin"), 
+  attendanceController.exportAttendanceExcel
+);
+
+// Admin: manually mark/update attendance (in case corrections are needed)
+router.put(
+  "/:attendanceId",
+  protect,
+  requireRole("admin"), 
+  attendanceController.updateAttendance
+);
+
+router.delete(
+  "/:attendanceId",
+  protect,
+  requireRole("admin"), 
+  attendanceController.deleteAttendance
+);
 
 module.exports = router;

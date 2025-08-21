@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const Offday = require('../models/Offday');
+const Offday = require('../models/offday');
 const User = require('../models/User'); // Needed for getOffdaysByServiceNumber
 
 // Staff requests offday

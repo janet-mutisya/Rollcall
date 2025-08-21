@@ -1,5 +1,4 @@
-
-      import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Calendar,
@@ -17,12 +16,21 @@ import {
   WifiOff,
   MapPin,
   Sun,
-  Moon
+  Moon,
+  CheckCircle,
+  UserCheck,
+  Bell,
+  X,
+  Check,
+  ChevronDown
 } from "lucide-react";
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [pendingUsers, setPendingUsers] = useState([]);
+  const [processingApproval, setProcessingApproval] = useState(null);
   const [dashboardStats, setDashboardStats] = useState({
     totalEmployees: 8750,
     dayShiftPresent: 0,
@@ -34,6 +42,7 @@ export default function Dashboard() {
     pendingSickSheets: 47,
     upcomingHolidays: 2,
     emergencies: 3,
+    pendingApprovals: 0,
     locations: {
       // Nairobi County
       "Nairobi HQ - CBD": { dayPresent: 0, dayLate: 0, nightPresent: 0, nightLate: 0, totalDay: 750, totalNight: 750, county: "Nairobi" },
@@ -66,11 +75,90 @@ export default function Dashboard() {
   const [selectedLocation, setSelectedLocation] = useState("All Locations");
   const [selectedCounty, setSelectedCounty] = useState("All Counties");
 
+  // Fetch pending user approvals
+  const fetchPendingApprovals = async () => {
+    try {
+      const mockPendingUsers = [
+        {
+          id: 1,
+          name: "John Doe",
+          email: "john.doe@company.com",
+          department: "IT",
+          position: "Software Developer",
+          submittedAt: "2025-01-15T10:30:00Z",
+          reason: "New employee registration"
+        },
+        {
+          id: 2,
+          name: "Jane Smith",
+          email: "jane.smith@company.com",
+          department: "Marketing",
+          position: "Marketing Specialist",
+          submittedAt: "2025-01-15T09:15:00Z",
+          reason: "Department transfer request"
+        },
+        {
+          id: 3,
+          name: "Mike Johnson",
+          email: "mike.johnson@company.com",
+          department: "Sales",
+          position: "Sales Representative",
+          submittedAt: "2025-01-15T08:45:00Z",
+          reason: "Role change approval"
+        }
+      ];
+      
+      setPendingUsers(mockPendingUsers);
+      setDashboardStats(prev => ({
+        ...prev,
+        pendingApprovals: mockPendingUsers.length
+      }));
+    } catch (error) {
+      console.error("Error fetching pending approvals:", error);
+    }
+  };
+
+  // Handle user approval/rejection
+  const handleUserAction = async (userId, action) => {
+    setProcessingApproval(userId);
+    
+    try {
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Remove user from pending list
+      setPendingUsers(prev => prev.filter(user => user.id !== userId));
+      setDashboardStats(prev => ({
+        ...prev,
+        pendingApprovals: prev.pendingApprovals - 1
+      }));
+      
+      console.log(`User ${userId} ${action}d successfully`);
+      
+    } catch (error) {
+      console.error(`Error ${action}ing user:`, error);
+      alert(`Failed to ${action} user. Please try again.`);
+    } finally {
+      setProcessingApproval(null);
+    }
+  };
+
+  // Close notification dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showNotifications && !event.target.closest('.notification-dropdown')) {
+        setShowNotifications(false);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [showNotifications]);
+
   // Determine current shift based on time
   const getCurrentShift = () => {
     const now = new Date();
     const hour = now.getHours();
-    // Day shift: 06:00 - 18:00, Night shift: 18:00 - 06:00
     return hour >= 6 && hour < 18 ? 'day' : 'night';
   };
 
@@ -81,10 +169,8 @@ export default function Dashboard() {
     const timeInMinutes = hour * 60 + minute;
     
     if (shift === 'day') {
-      // Late after 6:45 AM (405 minutes from midnight)
       return timeInMinutes > 405; // 6:45 AM
     } else {
-      // Night shift - late after 18:45 (1125 minutes from midnight)
       return timeInMinutes > 1125; // 6:45 PM
     }
   };
@@ -120,7 +206,7 @@ export default function Dashboard() {
     return summary;
   };
 
-  // Function to handle actual user check-ins (this would be called from your check-in system)
+  // Function to handle actual user check-ins
   const handleUserCheckin = (checkinData) => {
     const { 
       employeeName, 
@@ -152,7 +238,6 @@ export default function Dashboard() {
     setDashboardStats(prev => {
       const newLocations = { ...prev.locations };
       
-      // Update location-specific stats
       if (newLocations[location]) {
         if (currentShift === 'day') {
           if (isLate) {
@@ -169,7 +254,6 @@ export default function Dashboard() {
         }
       }
 
-      // Recalculate totals
       const dayShiftPresent = Object.values(newLocations).reduce((sum, loc) => sum + loc.dayPresent, 0);
       const dayShiftLate = Object.values(newLocations).reduce((sum, loc) => sum + loc.dayLate, 0);
       const nightShiftPresent = Object.values(newLocations).reduce((sum, loc) => sum + loc.nightPresent, 0);
@@ -186,23 +270,14 @@ export default function Dashboard() {
         locations: newLocations
       };
     });
-
-    // Here you would also send the checkin data to your backend
-    // Example: await sendCheckinToBackend(checkinData);
   };
 
   // Load existing attendance data on component mount
   useEffect(() => {
     const loadAttendanceData = async () => {
       try {
-        // In a real application, you would fetch this from your backend
-        // const response = await fetch('/api/attendance/today');
-        // const data = await response.json();
-        // setDashboardStats(data);
-        // setRecentLogins(data.recentLogins);
-        
-        // For now, starting with empty data - only real check-ins will populate it
         console.log("Dashboard loaded - waiting for real check-ins");
+        await fetchPendingApprovals();
       } catch (error) {
         console.error("Error loading attendance data:", error);
       }
@@ -227,48 +302,6 @@ export default function Dashboard() {
       window.removeEventListener("offline", updateOnlineStatus);
     };
   }, []);
-
-  // Listen for check-in events (this would come from your check-in system)
-  useEffect(() => {
-    // In a real application, you might listen for websocket events or poll an API
-    // Example WebSocket listener:
-    /*
-    const ws = new WebSocket('ws://your-backend/attendance-updates');
-    ws.onmessage = (event) => {
-      const checkinData = JSON.parse(event.data);
-      handleUserCheckin(checkinData);
-    };
-    
-    return () => {
-      ws.close();
-    };
-    */
-
-    // For testing purposes, you can uncomment the demo function below
-    // startDemoCheckins();
-  }, []);
-
-  // Demo function for testing (remove this in production)
-  const startDemoCheckins = () => {
-    const departments = ["IT", "Sales", "Marketing", "Finance", "Operations", "HR"];
-    const names = ["John Doe", "Jane Smith", "Mike Johnson", "Sarah Wilson"];
-    const locations = Object.keys(dashboardStats.locations);
-
-    // Simulate a check-in every 10 seconds for demo purposes
-    const interval = setInterval(() => {
-      const demoCheckin = {
-        employeeName: names[Math.floor(Math.random() * names.length)],
-        employeeId: `EMP${Math.floor(Math.random() * 9999).toString().padStart(4, '0')}`,
-        location: locations[Math.floor(Math.random() * locations.length)],
-        department: departments[Math.floor(Math.random() * departments.length)],
-        checkinTime: new Date()
-      };
-      
-      handleUserCheckin(demoCheckin);
-    }, 10000);
-
-    return () => clearInterval(interval);
-  };
 
   // Enhanced navigation handler
   const handleNavigation = (path) => {
@@ -321,6 +354,7 @@ export default function Dashboard() {
     window.location.href = targetRoute;
   };
 
+  // Admin cards configuration
   const adminCards = [
     {
       label: "VIEW SICK SHEETS",
@@ -431,8 +465,120 @@ export default function Dashboard() {
   return (
     <div className="max-w-7xl mx-auto py-8 px-4">
       <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2 text-center text-gray-800">Admin Dashboard</h1>
-        <p className="text-gray-600 text-center text-lg">Multi-County Operations Management System</p>
+        <div className="flex justify-between items-start mb-4">
+          <div className="flex-1">
+            <h1 className="text-4xl font-bold mb-2 text-center text-gray-800">Admin Dashboard</h1>
+            <p className="text-gray-600 text-center text-lg">Multi-County Operations Management System</p>
+          </div>
+          
+          {/* Notification Bell */}
+          <div className="relative notification-dropdown">
+            <button
+              onClick={() => setShowNotifications(!showNotifications)}
+              className="relative p-3 bg-white rounded-full shadow-lg hover:shadow-xl transition-shadow border border-gray-200"
+            >
+              <Bell size={24} className="text-gray-600" />
+              {dashboardStats.pendingApprovals > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center font-bold animate-pulse">
+                  {dashboardStats.pendingApprovals}
+                </span>
+              )}
+            </button>
+
+            {/* Notification Dropdown */}
+            {showNotifications && (
+              <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-96 overflow-y-auto">
+                <div className="p-4 border-b border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-gray-800">Pending Approvals</h3>
+                    <button
+                      onClick={() => setShowNotifications(false)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {pendingUsers.length} user{pendingUsers.length !== 1 ? 's' : ''} awaiting approval
+                  </p>
+                </div>
+
+                <div className="max-h-64 overflow-y-auto">
+                  {pendingUsers.length === 0 ? (
+                    <div className="p-6 text-center">
+                      <UserCheck className="mx-auto text-gray-300 mb-3" size={48} />
+                      <p className="text-gray-500">No pending approvals</p>
+                    </div>
+                  ) : (
+                    pendingUsers.map((user) => (
+                      <div key={user.id} className="p-4 border-b border-gray-100 last:border-b-0">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <h4 className="font-medium text-gray-800 truncate">{user.name}</h4>
+                              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                                {user.department}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-600 mb-1">{user.position}</p>
+                            <p className="text-xs text-gray-500 mb-2">{user.email}</p>
+                            <p className="text-xs text-gray-500 mb-3">
+                              Submitted: {new Date(user.submittedAt).toLocaleDateString()} at{' '}
+                              {new Date(user.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                            <p className="text-xs text-gray-600 bg-gray-50 p-2 rounded italic">
+                              "{user.reason}"
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex space-x-2 mt-3">
+                          <button
+                            onClick={() => handleUserAction(user.id, 'approve')}
+                            disabled={processingApproval === user.id}
+                            className="flex items-center space-x-1 px-3 py-2 bg-green-500 hover:bg-green-600 disabled:bg-green-300 text-white text-xs rounded font-medium transition-colors"
+                          >
+                            {processingApproval === user.id ? (
+                              <Loader2 size={14} className="animate-spin" />
+                            ) : (
+                              <Check size={14} />
+                            )}
+                            <span>Approve</span>
+                          </button>
+                          <button
+                            onClick={() => handleUserAction(user.id, 'reject')}
+                            disabled={processingApproval === user.id}
+                            className="flex items-center space-x-1 px-3 py-2 bg-red-500 hover:bg-red-600 disabled:bg-red-300 text-white text-xs rounded font-medium transition-colors"
+                          >
+                            {processingApproval === user.id ? (
+                              <Loader2 size={14} className="animate-spin" />
+                            ) : (
+                              <X size={14} />
+                            )}
+                            <span>Reject</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {pendingUsers.length > 0 && (
+                  <div className="p-3 border-t border-gray-200 bg-gray-50">
+                    <button
+                      onClick={() => {
+                        setShowNotifications(false);
+                      }}
+                      className="w-full text-sm text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      View All Approvals
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
         
         {/* Current Shift Indicator */}
         <div className="flex justify-center mt-4">
@@ -461,94 +607,205 @@ export default function Dashboard() {
           <ul className="list-disc list-inside mt-2 space-y-1">
             <li>Mobile app check-ins</li>
             <li>Web portal logins</li>
-            <li>Biometric scanner entries</li>
-            <li>Manual admin entries</li>
+            <li>Biometric scanners</li>
+            <li>QR code scanning</li>
           </ul>
-          <p className="mt-2 text-blue-600">
-            <strong>Current Status:</strong> All counters start at 0 and increment with actual check-ins only.
-          </p>
+          <div className="flex items-center mt-3 space-x-2">
+            {isRealTimeConnected ? (
+              <>
+                <Wifi size={16} className="text-green-600" />
+                <span className="text-green-700 font-medium">Connected - Live Updates Active</span>
+              </>
+            ) : (
+              <>
+                <WifiOff size={16} className="text-red-600" />
+                <span className="text-red-700 font-medium">Offline - Updates Paused</span>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Shift Overview Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Day Shift */}
-        <div className="bg-gradient-to-br from-yellow-50 to-orange-50 p-6 rounded-xl shadow-lg border-l-4 border-yellow-500">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-xl text-gray-800 flex items-center">
-              <Sun className="mr-2 text-yellow-600" size={24} />
-              Day Shift (06:00 - 18:00)
-            </h3>
-            <span className="text-sm bg-yellow-200 text-yellow-800 px-3 py-1 rounded-full font-medium">
-              Late after 06:45
-            </span>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-green-700">{dashboardStats.dayShiftPresent.toLocaleString()}</p>
-              <p className="text-sm text-green-600 font-medium">On Time</p>
+      {/* Real-time attendance summary */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-6 rounded-lg text-white shadow-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-blue-100 text-sm">Total Employees</p>
+              <p className="text-3xl font-bold">{dashboardStats.totalEmployees.toLocaleString()}</p>
             </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-orange-700">{dashboardStats.dayShiftLate.toLocaleString()}</p>
-              <p className="text-sm text-orange-600 font-medium">Late</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-blue-700">{dashboardStats.dayShiftLoggedIn.toLocaleString()}</p>
-              <p className="text-sm text-blue-600 font-medium">Total Logged In</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-gray-700">
-                {Object.values(dashboardStats.locations).reduce((sum, loc) => sum + loc.totalDay, 0).toLocaleString()}
-              </p>
-              <p className="text-sm text-gray-600 font-medium">Capacity</p>
-            </div>
+            <Users size={32} className="text-blue-200" />
           </div>
         </div>
 
-        {/* Night Shift */}
-        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-xl shadow-lg border-l-4 border-blue-500">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-xl text-gray-800 flex items-center">
-              <Moon className="mr-2 text-blue-600" size={24} />
-              Night Shift (18:00 - 06:00)
-            </h3>
-            <span className="text-sm bg-blue-200 text-blue-800 px-3 py-1 rounded-full font-medium">
-              Late after 18:45
-            </span>
+        <div className="bg-gradient-to-r from-green-500 to-green-600 p-6 rounded-lg text-white shadow-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-green-100 text-sm">Current Shift Present</p>
+              <p className="text-3xl font-bold">{currentShiftPresent.toLocaleString()}</p>
+              <p className="text-green-200 text-xs">of {currentShiftCapacity.toLocaleString()}</p>
+            </div>
+            <CheckCircle size={32} className="text-green-200" />
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-green-700">{dashboardStats.nightShiftPresent.toLocaleString()}</p>
-              <p className="text-sm text-green-600 font-medium">On Time</p>
+        </div>
+
+        <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 p-6 rounded-lg text-white shadow-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-yellow-100 text-sm">Current Shift Late</p>
+              <p className="text-3xl font-bold">{currentShiftLate.toLocaleString()}</p>
+              <p className="text-yellow-200 text-xs">after {getLateCutoff(currentShift)}</p>
             </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-orange-700">{dashboardStats.nightShiftLate.toLocaleString()}</p>
-              <p className="text-sm text-orange-600 font-medium">Late</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-blue-700">{dashboardStats.nightShiftLoggedIn.toLocaleString()}</p>
-              <p className="text-sm text-blue-600 font-medium">Total Logged In</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-gray-700">
-                {Object.values(dashboardStats.locations).reduce((sum, loc) => sum + loc.totalNight, 0).toLocaleString()}
+            <Clock size={32} className="text-yellow-200" />
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-r from-purple-500 to-purple-600 p-6 rounded-lg text-white shadow-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-purple-100 text-sm">Attendance Rate</p>
+              <p className="text-3xl font-bold">
+                {currentShiftCapacity > 0 ? Math.round((currentShiftLoggedIn / currentShiftCapacity) * 100) : 0}%
               </p>
-              <p className="text-sm text-gray-600 font-medium">Capacity</p>
+              <p className="text-purple-200 text-xs">{currentShiftLoggedIn.toLocaleString()} logged in</p>
             </div>
+            <Activity size={32} className="text-purple-200" />
           </div>
         </div>
       </div>
 
       {/* County Overview */}
-      <div className="mb-6 bg-white p-6 rounded-lg shadow-md">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-4">
-          <div className="flex items-center space-x-4 mb-4 lg:mb-0">
-            <MapPin className="text-blue-600" size={20} />
-            <h3 className="font-semibold text-gray-800">County Overview:</h3>
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold mb-4 text-gray-800">County Overview - {currentShift === 'day' ? 'Day Shift' : 'Night Shift'}</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Object.entries(countySummary).map(([county, data]) => {
+            const present = currentShift === 'day' ? data.dayPresent : data.nightPresent;
+            const late = currentShift === 'day' ? data.dayLate : data.nightLate;
+            const total = currentShift === 'day' ? data.totalDay : data.totalNight;
+            const loggedIn = present + late;
+            const attendanceRate = total > 0 ? Math.round((loggedIn / total) * 100) : 0;
+
+            return (
+              <div key={county} className="bg-white p-4 rounded-lg shadow border border-gray-200 hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-gray-800">{county}</h3>
+                  <MapPin size={16} className="text-gray-500" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-green-600">Present:</span>
+                    <span className="font-medium">{present}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-yellow-600">Late:</span>
+                    <span className="font-medium">{late}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Total:</span>
+                    <span className="font-medium">{total}</span>
+                  </div>
+                  <div className="flex justify-between text-sm font-semibold border-t pt-2">
+                    <span className="text-blue-600">Attendance:</span>
+                    <span className="text-blue-600">{attendanceRate}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${attendanceRate}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500">{data.locations} location{data.locations !== 1 ? 's' : ''}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Quick Actions Grid */}
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold mb-6 text-gray-800">Administrative Functions</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {adminCards.map((card, index) => (
+            <div
+              key={index}
+              onClick={() => {
+                try {
+                  card.action();
+                } catch (error) {
+                  console.error("Primary navigation failed:", error);
+                  card.fallbackAction();
+                }
+              }}
+              className={`${card.color} p-6 rounded-lg shadow-lg cursor-pointer transition-all duration-200 transform hover:scale-105 hover:shadow-xl relative group`}
+            >
+              {card.badge && (
+                <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center font-bold animate-pulse">
+                  {card.badge}
+                </div>
+              )}
+              <div className="flex flex-col items-center text-center">
+                <div className="mb-4 text-white group-hover:scale-110 transition-transform">
+                  {card.icon}
+                </div>
+                <h3 className="text-white font-bold text-sm mb-2 leading-tight">
+                  {card.label}
+                </h3>
+                <p className="text-white/80 text-xs leading-relaxed">
+                  {card.description}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Recent Activity */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Recent Check-ins */}
+        <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
+          <h3 className="text-xl font-bold mb-4 text-gray-800">Recent Check-ins</h3>
+          {recentLogins.length === 0 ? (
+            <div className="text-center py-8">
+              <Clock className="mx-auto text-gray-300 mb-3" size={48} />
+              <p className="text-gray-500">No check-ins yet today</p>
+              <p className="text-gray-400 text-sm">Check-ins will appear here as employees arrive</p>
+            </div>
+          ) : (
+            <div className="space-y-3 max-h-64 overflow-y-auto">
+              {recentLogins.map((login, index) => (
+                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded border">
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-3 h-3 rounded-full ${
+                      login.status === 'present' ? 'bg-green-500' : 'bg-yellow-500'
+                    }`} />
+                    <div>
+                      <p className="font-medium text-gray-800">{login.name}</p>
+                      <p className="text-sm text-gray-600">{login.department} • {login.location}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-medium text-gray-800">{login.time}</p>
+                    <p className={`text-xs ${
+                      login.status === 'present' ? 'text-green-600' : 'text-yellow-600'
+                    }`}>
+                      {login.status === 'present' ? 'On Time' : 'Late'}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Location Details */}
+        <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-bold text-gray-800">Location Details</h3>
             <select 
               value={selectedCounty}
               onChange={(e) => setSelectedCounty(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="text-sm border border-gray-300 rounded px-2 py-1"
             >
               <option value="All Counties">All Counties</option>
               {uniqueCounties.map(county => (
@@ -556,282 +813,78 @@ export default function Dashboard() {
               ))}
             </select>
           </div>
-          <div className="text-sm text-gray-600">
-            <span className="font-medium">Total Locations:</span> {Object.keys(dashboardStats.locations).length}
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {Object.entries(countySummary).map(([county, data]) => (
-            <div key={county} className="text-center p-3 bg-gray-50 rounded-lg">
-              <p className="font-medium text-gray-700 text-sm">{county}</p>
-              <div className="mt-2 space-y-1">
-                <div className="flex justify-center items-center space-x-1">
-                  <Sun size={12} className="text-yellow-600" />
-                  <p className="text-blue-600 font-bold text-sm">
-                    {(data.dayPresent + data.dayLate).toLocaleString()}/{data.totalDay.toLocaleString()}
-                  </p>
-                </div>
-                <div className="flex justify-center items-center space-x-1">
-                  <Moon size={12} className="text-blue-600" />
-                  <p className="text-blue-600 font-bold text-sm">
-                    {(data.nightPresent + data.nightLate).toLocaleString()}/{data.totalNight.toLocaleString()}
-                  </p>
-                </div>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">{data.locations} location{data.locations !== 1 ? 's' : ''}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Real-time Status Bar */}
-      <div className="mb-6 flex flex-col lg:flex-row lg:justify-between lg:items-center bg-gray-100 p-4 rounded-lg space-y-2 lg:space-y-0">
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
-            {isRealTimeConnected ? (
-              <Wifi className="text-green-500" size={20} />
-            ) : (
-              <WifiOff className="text-red-500" size={20} />
-            )}
-            <span className={`text-sm font-medium ${isRealTimeConnected ? 'text-green-600' : 'text-red-600'}`}>
-              {isRealTimeConnected ? 'Real-time Connected' : 'Connection Lost'}
-            </span>
-          </div>
-          <div className="text-sm text-gray-600">
-            Last updated: {new Date().toLocaleTimeString()}
-          </div>
-        </div>
-        <div className="text-sm text-gray-600">
-          <span className="font-medium">
-            {currentShift === 'day' ? dashboardStats.dayShiftLoggedIn : dashboardStats.nightShiftLoggedIn}
-          </span> / {currentShiftCapacity.toLocaleString()} employees checked in for {currentShift} shift
-        </div>
-      </div>
-
-      {/* Current Shift Quick Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div className={`p-6 rounded-lg text-center shadow-md hover:shadow-lg transition-shadow ${
-          currentShift === 'day' ? 'bg-yellow-100' : 'bg-blue-100'
-        }`}>
-          <Users className={`mx-auto mb-3 ${currentShift === 'day' ? 'text-yellow-600' : 'text-blue-600'}`} size={32} />
-          <p className={`text-3xl font-bold ${currentShift === 'day' ? 'text-yellow-800' : 'text-blue-800'}`}>
-            {currentShiftCapacity.toLocaleString()}
-          </p>
-          <p className={`text-sm font-medium ${currentShift === 'day' ? 'text-yellow-600' : 'text-blue-600'}`}>
-            {currentShift === 'day' ? 'Day Shift' : 'Night Shift'} Capacity
-          </p>
-        </div>
-        <div className="bg-green-100 p-6 rounded-lg text-center shadow-md hover:shadow-lg transition-shadow">
-          <ClipboardCheck className="mx-auto mb-3 text-green-600" size={32} />
-          <p className="text-3xl font-bold text-green-800">{currentShiftLoggedIn.toLocaleString()}</p>
-          <p className="text-sm text-green-600 font-medium">Checked In</p>
-        </div>
-        <div className="bg-emerald-100 p-6 rounded-lg text-center shadow-md hover:shadow-lg transition-shadow">
-          <Activity className="mx-auto mb-3 text-emerald-600" size={32} />
-          <p className="text-3xl font-bold text-emerald-800">{currentShiftPresent.toLocaleString()}</p>
-          <p className="text-sm text-emerald-600 font-medium">On Time</p>
-        </div>
-        <div className="bg-orange-100 p-6 rounded-lg text-center shadow-md hover:shadow-lg transition-shadow">
-          <AlertTriangle className="mx-auto mb-3 text-orange-600" size={32} />
-          <p className="text-3xl font-bold text-orange-800">{currentShiftLate.toLocaleString()}</p>
-          <p className="text-sm text-orange-600 font-medium">Late Arrivals</p>
-        </div>
-      </div>
-
-      {/* Admin Action Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
-        {adminCards.map((card, i) => (
-          <div
-            key={i}
-            className="relative group cursor-pointer"
-            onClick={() => {
-              console.log(`Clicking on card: ${card.label}`);
-              try {
-                card.action();
-              } catch (error) {
-                console.error(`Primary navigation failed for ${card.label}:`, error);
-                console.log(`Attempting fallback navigation for ${card.label}`);
-                if (card.fallbackAction) {
-                  card.fallbackAction();
-                } else {
-                  alert(`Navigation failed for ${card.label}. Please check console for details.`);
-                }
-              }
-            }}
-            onDoubleClick={() => {
-              console.log(`Double-clicking (fallback) on card: ${card.label}`);
-              if (card.fallbackAction) {
-                card.fallbackAction();
-              }
-            }}
-          >
-            <div className={`p-6 rounded-xl text-white flex flex-col items-center justify-center space-y-4 transition-all duration-300 ${card.color} transform hover:scale-105 hover:shadow-xl`}>
-              {card.badge && (
-                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-7 w-7 flex items-center justify-center font-bold animate-pulse">
-                  {card.badge}
-                </span>
-              )}
-              <div className="transform group-hover:scale-110 transition-transform duration-200">
-                {card.icon}
-              </div>
-              <span className="font-bold text-center text-sm">{card.label}</span>
-              <p className="text-xs text-center opacity-80 leading-tight">{card.description}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Recent Activity Summary */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Real-time Check-in Activity */}
-        <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg border border-gray-200">
-          <h3 className="font-bold text-lg mb-4 flex items-center text-gray-800">
-            <Users className="mr-2 text-blue-600" size={20} />
-            Recent Check-ins
-          </h3>
+          
           <div className="space-y-3 max-h-64 overflow-y-auto">
-            {recentLogins.length > 0 ? (
-              recentLogins.slice(0, 10).map((login, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex-1">
-                    <p className="font-medium text-sm text-gray-800">{login.name}</p>
-                    <div className="flex items-center space-x-2 text-xs text-gray-500">
-                      <span>{login.time}</span>
-                      <span>•</span>
-                      <span className="font-medium text-blue-600 truncate">{login.location}</span>
-                      <span>•</span>
-                      <span>{login.department}</span>
-                      <span>•</span>
-                      <span className="flex items-center">
-                        {login.shift === 'day' ? <Sun size={12} className="mr-1" /> : <Moon size={12} className="mr-1" />}
-                        {login.shift}
-                      </span>
+            {Object.entries(dashboardStats.locations)
+              .filter(([_, data]) => selectedCounty === "All Counties" || data.county === selectedCounty)
+              .map(([location, data]) => {
+                const present = currentShift === 'day' ? data.dayPresent : data.nightPresent;
+                const late = currentShift === 'day' ? data.dayLate : data.nightLate;
+                const total = currentShift === 'day' ? data.totalDay : data.totalNight;
+                const loggedIn = present + late;
+                const attendanceRate = total > 0 ? Math.round((loggedIn / total) * 100) : 0;
+
+                return (
+                  <div key={location} className="p-3 bg-gray-50 rounded border">
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <p className="font-medium text-gray-800">{location}</p>
+                        <p className="text-xs text-gray-500">{data.county} County</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-medium text-gray-800">{attendanceRate}%</p>
+                        <p className="text-xs text-gray-600">{loggedIn}/{total}</p>
+                      </div>
+                    </div>
+                    <div className="flex space-x-4 text-xs">
+                      <span className="text-green-600">Present: {present}</span>
+                      <span className="text-yellow-600">Late: {late}</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
+                      <div 
+                        className="bg-blue-500 h-1.5 rounded-full transition-all duration-300"
+                        style={{ width: `${attendanceRate}%` }}
+                      />
                     </div>
                   </div>
-                  <span className={`px-2 py-1 text-xs rounded-full font-medium ${
-                    login.status === 'present' 
-                      ? 'bg-green-100 text-green-700' 
-                      : 'bg-orange-100 text-orange-700'
-                  }`}>
-                    {login.status === 'present' ? 'On Time' : 'Late'}
-                  </span>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-8">
-                <Users className="mx-auto text-gray-300 mb-3" size={48} />
-                <p className="text-gray-500 text-sm">No check-ins yet today</p>
-                <p className="text-gray-400 text-xs mt-1">Real attendance data will appear here</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Activity Overview */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-lg border border-gray-200">
-          <h2 className="font-bold text-xl mb-6 flex items-center text-gray-800">
-            <Activity className="mr-3 text-blue-600" size={24} />
-            Today's Overview
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-5 rounded-lg border-l-4 border-blue-500">
-              <h3 className="font-semibold text-gray-800 mb-3 flex items-center">
-                <ClipboardCheck className="mr-2 text-blue-600" size={18} />
-                Current Shift Status
-              </h3>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-blue-700 font-medium flex items-center">
-                    {currentShift === 'day' ? <Sun size={14} className="mr-1" /> : <Moon size={14} className="mr-1" />}
-                    {currentShift === 'day' ? 'Day Shift' : 'Night Shift'}:
-                  </span>
-                  <span className="font-bold text-blue-800">{currentShiftLoggedIn.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-emerald-700 font-medium">On Time:</span>
-                  <span className="font-bold text-emerald-800">{currentShiftPresent.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-orange-700 font-medium">Late:</span>
-                  <span className="font-bold text-orange-800">{currentShiftLate.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-700 font-medium">Capacity:</span>
-                  <span className="font-bold text-gray-800">{currentShiftCapacity.toLocaleString()}</span>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-5 rounded-lg border-l-4 border-orange-500">
-              <h3 className="font-semibold text-gray-800 mb-3 flex items-center">
-                <AlertTriangle className="mr-2 text-orange-600" size={18} />
-                Admin Tasks
-              </h3>
-              <div className="space-y-2 text-sm">
-                <Link to="/SickSheet" className="block">
-                  <p className="flex justify-between hover:bg-orange-200 p-1 rounded transition-colors">
-                    <span className="text-orange-700">Sick sheets:</span>
-                    <span className="font-bold text-orange-800">{dashboardStats.pendingSickSheets}</span>
-                  </p>
-                </Link>
-                <p className="flex justify-between">
-                  <span className="text-purple-700">Holidays:</span>
-                  <span className="font-bold text-purple-800">{dashboardStats.upcomingHolidays}</span>
-                </p>
-                <p className="flex justify-between">
-                  <span className="text-red-700">Emergencies:</span>
-                  <span className="font-bold text-red-800">{dashboardStats.emergencies}</span>
-                </p>
-                <div className="mt-3 pt-2 border-t border-orange-200">
-                  <p className="flex justify-between">
-                    <span className="text-blue-700">Attendance Rate:</span>
-                    <span className="font-bold text-blue-800">
-                      {currentShiftCapacity > 0 
-                        ? Math.round((currentShiftLoggedIn / currentShiftCapacity) * 100)
-                        : 0}%
-                    </span>
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Integration Instructions */}
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <h4 className="font-semibold text-gray-800 mb-2">🔗 Integration Points</h4>
-            <div className="text-xs text-gray-600 space-y-1">
-              <p><strong>handleUserCheckin():</strong> Call this function when users check in</p>
-              <p><strong>WebSocket:</strong> Listen for real-time check-in events</p>
-              <p><strong>API:</strong> Load existing attendance data on component mount</p>
-              <p><strong>Database:</strong> Sync with your attendance management system</p>
-            </div>
+                );
+              })}
           </div>
         </div>
       </div>
 
-      {/* Demo Section (Remove in Production) */}
-      <div className="mt-8 bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
-        <h3 className="font-bold text-yellow-800 mb-2">🧪 Demo Mode</h3>
-        <p className="text-sm text-yellow-700 mb-3">
-          To test the check-in functionality, uncomment the <code>startDemoCheckins()</code> function call in the useEffect.
-          This will simulate check-ins every 10 seconds for testing purposes.
-        </p>
-        <button 
-          onClick={() => {
-            // Demo check-in for testing
-            handleUserCheckin({
-              employeeName: "Test User",
-              employeeId: "TEST001", 
-              location: "Nairobi HQ - CBD",
-              department: "IT",
-              checkinTime: new Date()
-            });
-          }}
-          className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded text-sm font-medium"
-        >
-          Simulate Check-in
-        </button>
+      {/* Quick Stats Footer */}
+      <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-white p-4 rounded-lg shadow border text-center">
+          <p className="text-2xl font-bold text-green-600">{dashboardStats.dayShiftLoggedIn}</p>
+          <p className="text-sm text-gray-600">Day Shift Total</p>
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow border text-center">
+          <p className="text-2xl font-bold text-blue-600">{dashboardStats.nightShiftLoggedIn}</p>
+          <p className="text-sm text-gray-600">Night Shift Total</p>
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow border text-center">
+          <p className="text-2xl font-bold text-orange-600">{dashboardStats.pendingSickSheets}</p>
+          <p className="text-sm text-gray-600">Pending Sick Sheets</p>
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow border text-center">
+          <p className="text-2xl font-bold text-red-600">{dashboardStats.emergencies}</p>
+          <p className="text-sm text-gray-600">Active Emergencies</p>
+        </div>
+      </div>
+
+      {/* System Status */}
+      <div className="mt-6 text-center">
+        <div className="inline-flex items-center space-x-2 px-4 py-2 bg-gray-100 rounded-full">
+          <div className={`w-2 h-2 rounded-full ${isRealTimeConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+          <span className="text-sm text-gray-600">
+            System Status: {isRealTimeConnected ? 'Online' : 'Offline'}
+          </span>
+          <span className="text-xs text-gray-500">
+            Last updated: {new Date().toLocaleTimeString()}
+          </span>
+        </div>
       </div>
     </div>
-  );}
+  );
+}
